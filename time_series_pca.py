@@ -12,6 +12,7 @@ time_series_pca.py
 
 """
 @TODO
+- read header?(read "series_raw.csv")
 - put reporting files together (eval & evec)
 - add column name and time stamp
 - plot principal components time series
@@ -32,28 +33,29 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     import numpy as np
     from scipy import linalg as la
     
+    print "===Principal Components Analysis==="
     m, n = data.shape
-    print "data: ", m, "-days x ", n, "-assets matrix"
+    print "original data for PCA: ", m, "-days x", n, "-assets matrix"
     # Calculate Z-score
-    data_normalize = np.array(data[:normalize_days])
-    m_n, n_n = data_normalize.shape
-    print "- for normalization: ", m_n, "-days x ", n_n, "-assets matrix"
-    print "data.mean: ", data_normalize.mean(axis = 0)
-    print "data.std: ", data_normalize.std(axis = 0)
-    z_score =(data - data_normalize.mean(axis = 0)) / data_normalize.std(axis = 0)
-    #np.savetxt("z-score.csv", z_score, delimiter=',')
-    z_score_normalize = z_score[:normalize_days]
-    print "Z-score: ", z_score[0]
+    data_for_normalize = data[:normalize_days]  #extract data used for normalization
+    m_n, n_n = data_for_normalize.shape
+    print "- on normalization: ", m_n, "-days x", n_n, "-assets matrix is used."
+    z_score =(data - data_for_normalize.mean(axis = 0)) / data_for_normalize.std(axis = 0)
+    z_score_for_normalize = z_score[:normalize_days]    #extract z-score used for normalization
+        
+    # calculate the covariance matrix (day's direction is vertical: rowvar = 0, unbiased: bias = 0)
+    covMat = np.cov(z_score_for_normalize, rowvar = 0, bias = 0)
     
-    # calculate the covariance matrix (days - column: rowvar = 0, unbiased: bias = 0)
-    covMat = np.cov(z_score_normalize, rowvar = 0, bias = 0)
     # calculate eigenvectors & eigenvalues of the covariance matrix
     evals, evecs = la.eigh(covMat)
+    
     # sort eigenvalue in decreasing order
     idx = np.argsort(evals)[::-1]
     evals = evals[idx]
+    
     # sort eigenvectors according to same index
     evecs = evecs[:,idx]
+    
     #select the first n eigenvectors ( n is desired dimension
     # of rescaled data array, or dims_rescaled_data)
     evecs = evecs[:, :pca_dimension]
@@ -68,7 +70,11 @@ def PCA(data, pca_dimension=3, normalize_days=120):
 '''
 def plot(data):
     from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib
+    matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
+    
+    print "===Plots==="
     
     _, n = data.shape
     clr1 = '#202682'
@@ -98,25 +104,74 @@ def plot(data):
         ax.set_ylabel('2nd')
     else:
         ax = fig.add_subplot(111)
-        
     
     #Save Plot Image
     plt.savefig("plot.png", dpi=300)
+    
     #Show Plot Image
     plt.show()
+'''
+@fn loadcsv_with_header
+@brief load csv data with a header
+@param filename : path_to_the_csv_file.csv : filepath to the csv file
+@param methods : loading methods : 0-NumPy(loadtxt), 1-NumPy (genfromtxt), 2-Pandas, 3-CSV
+@return header : 
+@return data : NumPy 2D Array : data
+'''
+def loadcsv_no_header(filename, methods = 2):
+    import numpy as np  #necessary for @return data (NumPy 2D Array)
+       
+    print "===Load CSV==="
+       
+    if methods == 0:
+        #===Use Numpy (loadtxt)===
+        csv_data = np.loadtxt(filename, delimiter=',', skiprows=0)
+    elif methods == 1:
+        #===Use Numpy (genfromtxt: substitute NaN to 0.0)===
+        csv_data = np.genfromtxt(filename, delimiter=',', filling_values=0.0)
+    elif methods == 2:
+        #===Usd Pandas===
+        import pandas
+        #read CSV with pandas -> convert pandas "dataframe" to numpy "array"
+        csv_data = pandas.read_csv(filename, header=None, encoding='utf-8').as_matrix() #ncoding='shift_jis'
+    elif methods == 3:
+        #===Use CSV===
+        import csv
+        csv_data = np.array([])
+        flag = True
+        with open(filename, 'rU') as csv_file:
+            reader = csv.reader(csv_file, quoting=csv.QUOTE_NONNUMERIC)
+            for row in reader:
+                if flag:
+                    csv_data = np.hstack((csv_data, np.array(row)))
+                    flag = False
+                else:
+                    csv_data = np.vstack((csv_data, np.array(row)))
+    else:
+        print "invalid value for methods"
+        exit()
+        
+    
+    return csv_data
 
 '''
 Main procedure
 '''
 import numpy as np
+
+print "===Program Initiated==="
+
 #Read Data
-raw_data = np.loadtxt("series_raw.csv",delimiter=',')
+raw_data = loadcsv_no_header("series.csv")
+
 #Principal Component Analysis
-data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
+_, n = raw_data.shape
+data_pca, evals, evecs, z_score = PCA(raw_data, n, 120)
+
 #Save Data
-np.savetxt("result.csv", data_pca, delimiter=',')
+np.savetxt("series_results.csv", data_pca, delimiter=',')
 np.savetxt("z-score.csv", z_score, delimiter=',')
-np.savetxt("variance.csv", evals.T, delimiter=',')
-np.savetxt("loadings.csv", evecs, delimiter=',')
+np.savetxt("result.csv", np.vstack((evals.T, evecs)), delimiter=',')
+
 #Plot PCA result
 plot(data_pca)
