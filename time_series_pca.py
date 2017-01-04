@@ -12,10 +12,9 @@ time_series_pca.py
 
 """
 @TODO
-- read header?(read "series_raw.csv")
-- put reporting files together (eval & evec)
-- add column name and time stamp
 - plot principal components time series
+- read header?(read "series_raw.csv")
+- add column name and time stamp
 """
 
 '''
@@ -56,8 +55,9 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     # sort eigenvectors according to same index
     evecs = evecs[:,idx]
     
-    #select the first n eigenvectors ( n is desired dimension
+    #select the first n eigenvalues & eigenvectors ( n is desired dimension
     # of rescaled data array, or dims_rescaled_data)
+    evals = evals[:pca_dimension]
     evecs = evecs[:, :pca_dimension]
     # carry out the transformation on the data using eigenvectors
     # and return the re-scaled data, eigenvalues, and eigenvectors
@@ -110,6 +110,31 @@ def plot(data):
     
     #Show Plot Image
     plt.show()
+'''
+@fn line_graph
+@brief show and save line graph
+@param data : 2D NumPy array : vertical:date
+@return none
+'''    
+def line_graph(data):
+    import matplotlib
+    matplotlib.use('TkAgg')
+    from matplotlib import pyplot as plt
+       
+    print "===Draw Composite Index Graph==="
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(data, '-')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('composite index')
+    
+    #Save Plot Image
+    plt.savefig("composite index.png", dpi=300)
+        
+    #Show Plot Image
+    plt.show()
+    
 '''
 @fn loadcsv_with_header
 @brief load csv data with a header
@@ -165,13 +190,21 @@ print "===Program Initiated==="
 raw_data = loadcsv_no_header("series.csv")
 
 #Principal Component Analysis
-_, n = raw_data.shape
-data_pca, evals, evecs, z_score = PCA(raw_data, n, 120)
+#_, n = raw_data.shape
+data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
+
+#Calculate Weighted Average
+composite_index = (data_pca[:, 0]*evals[0] + data_pca[:, 1]*evals[1] + data_pca[:, 2]*evals[2])/100.0
+
 
 #Save Data
 np.savetxt("series_results.csv", data_pca, delimiter=',')
 np.savetxt("z-score.csv", z_score, delimiter=',')
 np.savetxt("result.csv", np.vstack((evals.T, evecs)), delimiter=',')
+np.savetxt("composite_results.csv", composite_index, delimiter=',')
 
 #Plot PCA result
-plot(data_pca)
+#plot(data_pca)
+
+#Draw Composite Results
+line_graph(composite_index[-1::-1])
