@@ -12,7 +12,6 @@ time_series_pca.py
 
 """
 @TODO
-- sort data
 - output graph (with time stamp)
 """
 
@@ -218,11 +217,20 @@ def loadcsv(filename, header_rows = 1):
     timestamp_s = csv_data[1:,0]
     header = header[1:]
     csv_data = csv_data[:,1:].astype(np.float64) #transform string to float64
+
     #transform string to datetime
     timestamp = np.hstack((timestamp, np.array(dt.strptime(timestamp_s[0], '%Y/%m/%d'))))
     for i in range(1, timestamp_s.size):
         timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
 
+    #sort data according to time stamp
+    if timestamp.size > 1:
+        if timestamp[0] > timestamp[1]: #Descending Time series -> sort
+            #print timestamp
+            timestamp = timestamp[::-1]
+            print csv_data[0]
+            csv_data = csv_data[::-1]
+            print csv_data[0]
     return header, timestamp, csv_data
 
 '''
