@@ -12,9 +12,8 @@ time_series_pca.py
 
 """
 @TODO
-- plot principal components time series
-- read header?(read "series_raw.csv")
-- add column name and time stamp
+- sort data
+- output graph (with time stamp)
 """
 
 '''
@@ -120,7 +119,7 @@ def line_graph(data):
     import matplotlib
     matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
-       
+
     print "===Draw Composite Index Graph==="
     
     fig = plt.figure()
@@ -136,14 +135,13 @@ def line_graph(data):
     plt.show()
     
 '''
-@fn loadcsv_with_header
-@brief load csv data with a header
-@param filename : path_to_the_csv_file.csv : filepath to the csv file
-@param methods : loading methods : 0-NumPy(loadtxt), 1-NumPy (genfromtxt), 2-Pandas, 3-CSV
-@return header : 
+@fn loadcsv_no_header
+@brief load csv data with no header
+@param filename : path_to_the_csv_file.csv : file path to the csv file
+@param methods : loading methods : 0-NumPy(loadtxt), 1-NumPy (genfromtxt), 2-Pandas(WARNING), 3-CSV
 @return data : NumPy 2D Array : data
 '''
-def loadcsv_no_header(filename, methods = 2):
+def loadcsv_no_header(filename, methods = 0):
     import numpy as np  #necessary for @return data (NumPy 2D Array)
        
     print "===Load CSV==="
@@ -155,47 +153,96 @@ def loadcsv_no_header(filename, methods = 2):
         #===Use Numpy (genfromtxt: substitute NaN to 0.0)===
         csv_data = np.genfromtxt(filename, delimiter=',', filling_values=0.0)
     elif methods == 2:
-        #===Usd Pandas===
+        #===Use Pandas=== WARNING: data is not translated from DataFrame to NumPy correctly so that PCA result could change.
         import pandas
         #read CSV with pandas -> convert pandas "dataframe" to numpy "array"
-        csv_data = pandas.read_csv(filename, header=None, encoding='utf-8').as_matrix() #ncoding='shift_jis'
+        csv_data = pandas.read_csv(filename, header=None, encoding='utf-8').fillna(0.0).as_matrix() #encoding='shift_jis' or 'utf-8'
     elif methods == 3:
         #===Use CSV===
         import csv
         csv_data = np.array([])
-        flag = True
+        dataFlag = True
         with open(filename, 'rU') as csv_file:
             reader = csv.reader(csv_file, quoting=csv.QUOTE_NONNUMERIC)
             for row in reader:
-                if flag:
+                if dataFlag:
                     csv_data = np.hstack((csv_data, np.array(row)))
-                    flag = False
+                    dataFlag = False
                 else:
                     csv_data = np.vstack((csv_data, np.array(row)))
     else:
         print "invalid value for methods"
         exit()
         
-    
     return csv_data
+
+'''
+@fn loadcsv
+@brief load csv data with a header
+@param filename : path_to_the_csv_file.csv : file path to the csv file
+@param header_rows : number of rows used for header in the csv file (default = 1)
+@return header : NumPy Array (String) : headers
+@return timestamp : datetime.datetime Array : time stamp
+@return data : NumPy 2D Array (float64)w : data
+'''
+def loadcsv(filename, header_rows = 1):
+    import numpy as np  #necessary for @return data (NumPy 2D Array)
+    import csv
+    from datetime import datetime as dt
+    
+    print "===Load CSV==="
+    
+    header = np.array([])
+    timestamp = np.array([])
+    csv_data = np.array([])
+    dataFlag = True
+    count = 0
+    
+    #Read CSV Data
+    with open(filename, 'rU') as csv_file:
+        reader = csv.reader(csv_file, quoting=csv.QUOTE_ALL) #QUOTE_ALL is required for headers & date column
+        for row in reader:
+            if dataFlag: #Read Headers and First Data
+                if count < header_rows: #Read Headers
+                    if count == 0:
+                        header = np.hstack((header, np.array(row)))
+                    else:
+                        header = np.vstack((header, np.array(row)))
+                    count += 1
+                else: #Read First Data
+                    csv_data = np.hstack((csv_data, np.array(row)))
+                    dataFlag = False
+            else: #Read following Data
+                csv_data = np.vstack((csv_data, np.array(row)))
+    #split Time stamp Column
+    timestamp_s = csv_data[1:,0]
+    header = header[1:]
+    csv_data = csv_data[:,1:].astype(np.float64) #transform string to float64
+    #transform string to datetime
+    timestamp = np.hstack((timestamp, np.array(dt.strptime(timestamp_s[0], '%Y/%m/%d'))))
+    for i in range(1, timestamp_s.size):
+        timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
+
+    return header, timestamp, csv_data
 
 '''
 Main procedure
 '''
 import numpy as np
+#from datetime import datetime as dt
 
 print "===Program Initiated==="
 
 #Read Data
-raw_data = loadcsv_no_header("series.csv")
+#raw_data = loadcsv_no_header("series.csv", 0)
+header, timestamp, raw_data = loadcsv("series_raw.csv")
 
 #Principal Component Analysis
-#_, n = raw_data.shape
+_, n = raw_data.shape
 data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
 
 #Calculate Weighted Average
 composite_index = (data_pca[:, 0]*evals[0] + data_pca[:, 1]*evals[1] + data_pca[:, 2]*evals[2])/100.0
-
 
 #Save Data
 np.savetxt("series_results.csv", data_pca, delimiter=',')
@@ -204,7 +251,7 @@ np.savetxt("result.csv", np.vstack((evals.T, evecs)), delimiter=',')
 np.savetxt("composite_results.csv", composite_index, delimiter=',')
 
 #Plot PCA result
-#plot(data_pca)
+plot(data_pca)
 
 #Draw Composite Results
 line_graph(composite_index[-1::-1])
