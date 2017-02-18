@@ -12,7 +12,7 @@ time_series_pca.py
 
 """
 @TODO
-- output csv files for headers and timestamps
+- sum up output csv files
 
 ***TEMPOLARY ADJUSTMENT***
 === avoid subdivision with zero (stdev could be 0) ===
@@ -51,6 +51,10 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     # calculate eigenvectors & eigenvalues of the covariance matrix
     evals, evecs = la.eigh(covMat)
     
+    #normalize eval so that evals.sum() always be 1
+    evalsum = evals.sum()
+    evals = evals/evalsum
+    
     # sort eigenvalue in decreasing order
     idx = np.argsort(evals)[::-1]
     evals = evals[idx]
@@ -60,8 +64,8 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     
     #select the first n eigenvalues & eigenvectors ( n is desired dimension
     # of rescaled data array, or dims_rescaled_data)
-    evals = evals[:pca_dimension]
-    evecs = evecs[:, :pca_dimension]
+    #evals = evals[:pca_dimension]
+    #evecs = evecs[:, :pca_dimension]
     # carry out the transformation on the data using eigenvectors
     # and return the re-scaled data, eigenvalues, and eigenvectors
     return np.dot(evecs.T, z_score.T).T, evals, evecs, z_score
@@ -271,6 +275,8 @@ Main procedure
 import numpy as np
 #from datetime import datetime as dt
 
+pca_dimensions = 3
+
 print "===Program Initiated==="
 
 #Read Data
@@ -279,20 +285,38 @@ header, timestamp, raw_data = loadcsv("series_raw.csv")
 
 #Principal Component Analysis
 _, n = raw_data.shape
-data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
+data_pca, evals, evecs, z_score = PCA(raw_data, pca_dimensions, 120)
 
 #Calculate Weighted Average
-composite_index = (data_pca[:, 0]*evals[0] + data_pca[:, 1]*evals[1] + data_pca[:, 2]*evals[2])/100.0
+composite_index = 0.0
+for i in range(0, pca_dimensions):
+    composite_index = composite_index + data_pca[:, i]*evals[i] #/100.0
 
 #Save Data
-######################################
-#np.savetxt("header.csv", header)
-#np.savetxt("timestamp.csv", list(timestamp), delimiter=',')
-######################################
-np.savetxt("series_results.csv", data_pca, delimiter=',')
-np.savetxt("z-score.csv", z_score, delimiter=',')
-np.savetxt("result.csv", np.vstack((evals.T, evecs)), delimiter=',')
-np.savetxt("composite_results.csv", composite_index, delimiter=',')
+#timestamp: transform datetime to String for csv output
+csv_timestamp = np.array([])
+for i in range(0, timestamp.size):
+    csv_timestamp = np.hstack((csv_timestamp, np.array(timestamp[i,0].strftime('%Y/%m/%d'))))
+
+#principal component index numbers
+index_numbers = np.array([1])
+for i in range(2, evals.size+1):
+    index_numbers = np.hstack((index_numbers, np.array([i])))
+
+#Principal Components
+csv_series_result = np.vstack((csv_timestamp, composite_index, data_pca.T)).T
+csv_series_result = np.vstack((np.hstack((np.array(['Date', 'Compound Index']), index_numbers)), csv_series_result))
+np.savetxt("series_results.csv", csv_series_result, delimiter=',', fmt='%s')
+
+#Z-scores
+csv_header = np.hstack((np.array(['Date']), header))
+csv_z_score = np.vstack((csv_header, np.vstack((csv_timestamp, z_score.T)).T))
+np.savetxt("z-score.csv", csv_z_score, delimiter=',', fmt='%s')
+
+#PCA_result
+csv_header[0] = 'Proportion of Variance'    #rename
+csv_pca_result = np.vstack((np.hstack((np.array(['Principal Components']), index_numbers)), np.vstack((csv_header, np.vstack((evals.T, evecs)).T)).T))
+np.savetxt("pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
 
 #Plot PCA result
 plot(data_pca)
