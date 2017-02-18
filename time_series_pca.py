@@ -12,7 +12,6 @@ time_series_pca.py
 
 """
 @TODO
-- output graph (with time stamp)
 - output csv files for headers and timestamps
 
 ***TEMPOLARY ADJUSTMENT***
@@ -120,18 +119,43 @@ def plot(data):
 @param data : 2D NumPy array : vertical:date
 @return none
 '''    
-def line_graph(data):
+def line_graph(data, timestamp):
     import matplotlib
     matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
+    import matplotlib.dates as mdates
+    import datetime
 
     print "===Draw Composite Index Graph==="
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(data, '-')
+
+    #convert timestamp data for x-axis
+    dates = mdates.date2num(timestamp)
+    
+    ax.plot(dates, data)
+
+    #format labels
     ax.set_xlabel('Date')
     ax.set_ylabel('composite index')
+    
+    #format ticks
+    years = mdates.YearLocator()    #every year
+    months = mdates.MonthLocator()  #every month
+    yearsFmt = mdates.DateFormatter('%Y')
+    
+    ax.xaxis.set_major_locator(years)
+    ax.xaxis.set_major_formatter(yearsFmt)
+    ax.xaxis.set_minor_locator(months)
+    
+    datemin = datetime.date(timestamp.min().year, 1, 1)
+    datemax = datetime.date(timestamp.max().year + 1, 1, 1)
+    ax.set_xlim(datemin, datemax)
+    
+    #format the coordinates message box
+    ax.format_xdata = mdates.DateFormatter('%Y/%m/%d')
+    #ax.gird(True)
     
     #Save Plot Image
     plt.savefig("composite index.png", dpi=300)
@@ -219,6 +243,7 @@ def loadcsv(filename, header_rows = 1):
                     dataFlag = False
             else: #Read following Data
                 csv_data = np.vstack((csv_data, np.array(row)))
+
     #split Time stamp Column
     timestamp_s = csv_data[:,0]
     header = header[1:]
@@ -260,7 +285,6 @@ data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
 composite_index = (data_pca[:, 0]*evals[0] + data_pca[:, 1]*evals[1] + data_pca[:, 2]*evals[2])/100.0
 
 #Save Data
-print header[0]
 ######################################
 #np.savetxt("header.csv", header)
 #np.savetxt("timestamp.csv", list(timestamp), delimiter=',')
@@ -274,4 +298,4 @@ np.savetxt("composite_results.csv", composite_index, delimiter=',')
 plot(data_pca)
 
 #Draw Composite Results
-line_graph(composite_index)
+line_graph(composite_index, timestamp)
