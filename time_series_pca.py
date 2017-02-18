@@ -13,6 +13,12 @@ time_series_pca.py
 """
 @TODO
 - output graph (with time stamp)
+- output csv files for headers and timestamps
+
+***TEMPOLARY ADJUSTMENT***
+=== avoid subdivision with zero (stdev could be 0) ===
+csv_data = csv_data[:1900]
+timestamp = timestamp[:1900]
 """
 
 '''
@@ -34,11 +40,11 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     m, n = data.shape
     print "original data for PCA: ", m, "-days x", n, "-assets matrix"
     # Calculate Z-score
-    data_for_normalize = data[:normalize_days]  #extract data used for normalization
+    data_for_normalize = data[m - normalize_days:]  #extract data used for normalization
     m_n, n_n = data_for_normalize.shape
     print "- on normalization: ", m_n, "-days x", n_n, "-assets matrix is used."
     z_score =(data - data_for_normalize.mean(axis = 0)) / data_for_normalize.std(axis = 0)
-    z_score_for_normalize = z_score[:normalize_days]    #extract z-score used for normalization
+    z_score_for_normalize = z_score[m - normalize_days:]    #extract z-score used for normalization
         
     # calculate the covariance matrix (day's direction is vertical: rowvar = 0, unbiased: bias = 0)
     covMat = np.cov(z_score_for_normalize, rowvar = 0, bias = 0)
@@ -181,7 +187,7 @@ def loadcsv_no_header(filename, methods = 0):
 @param filename : path_to_the_csv_file.csv : file path to the csv file
 @param header_rows : number of rows used for header in the csv file (default = 1)
 @return header : NumPy Array (String) : headers
-@return timestamp : datetime.datetime Array : time stamp
+@return timestamp : string Array : time stamp
 @return data : NumPy 2D Array (float64)w : data
 '''
 def loadcsv(filename, header_rows = 1):
@@ -214,23 +220,24 @@ def loadcsv(filename, header_rows = 1):
             else: #Read following Data
                 csv_data = np.vstack((csv_data, np.array(row)))
     #split Time stamp Column
-    timestamp_s = csv_data[1:,0]
+    timestamp_s = csv_data[:,0]
     header = header[1:]
     csv_data = csv_data[:,1:].astype(np.float64) #transform string to float64
 
-    #transform string to datetime
+    ###transform string to datetime###
     timestamp = np.hstack((timestamp, np.array(dt.strptime(timestamp_s[0], '%Y/%m/%d'))))
     for i in range(1, timestamp_s.size):
         timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
 
+    # TEMPOLARY ADJUSTMENT === avoid subdivision with zero (stdev could be 0) ===
+    csv_data = csv_data[:1900]
+    timestamp = timestamp[:1900]
+
     #sort data according to time stamp
     if timestamp.size > 1:
-        if timestamp[0] > timestamp[1]: #Descending Time series -> sort
-            #print timestamp
+        if timestamp[0] > timestamp[1]:
             timestamp = timestamp[::-1]
-            print csv_data[0]
             csv_data = csv_data[::-1]
-            print csv_data[0]
     return header, timestamp, csv_data
 
 '''
@@ -253,6 +260,11 @@ data_pca, evals, evecs, z_score = PCA(raw_data, 3, 120)
 composite_index = (data_pca[:, 0]*evals[0] + data_pca[:, 1]*evals[1] + data_pca[:, 2]*evals[2])/100.0
 
 #Save Data
+print header[0]
+######################################
+#np.savetxt("header.csv", header)
+#np.savetxt("timestamp.csv", list(timestamp), delimiter=',')
+######################################
 np.savetxt("series_results.csv", data_pca, delimiter=',')
 np.savetxt("z-score.csv", z_score, delimiter=',')
 np.savetxt("result.csv", np.vstack((evals.T, evecs)), delimiter=',')
@@ -262,4 +274,4 @@ np.savetxt("composite_results.csv", composite_index, delimiter=',')
 plot(data_pca)
 
 #Draw Composite Results
-line_graph(composite_index[-1::-1])
+line_graph(composite_index)
