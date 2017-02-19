@@ -121,6 +121,7 @@ def plot(data):
 @fn line_graph
 @brief show and save line graph
 @param data : 2D NumPy array : vertical:date
+@param timestamp : numPy Array (DateTime) : time stamp
 @return none
 '''    
 def line_graph(data, timestamp):
@@ -128,7 +129,7 @@ def line_graph(data, timestamp):
     matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
     import matplotlib.dates as mdates
-    import datetime
+    import datetime as dt
 
     print "===Draw Composite Index Graph==="
     
@@ -153,8 +154,8 @@ def line_graph(data, timestamp):
     ax.xaxis.set_major_formatter(yearsFmt)
     ax.xaxis.set_minor_locator(months)
     
-    datemin = datetime.date(timestamp.min().year, 1, 1)
-    datemax = datetime.date(timestamp.max().year + 1, 1, 1)
+    datemin = dt.date(timestamp.min().year, 1, 1)
+    datemax = dt.date(timestamp.max().year + 1, 1, 1)
     ax.set_xlim(datemin, datemax)
     
     #format the coordinates message box
@@ -215,7 +216,7 @@ def loadcsv_no_header(filename, methods = 0):
 @param filename : path_to_the_csv_file.csv : file path to the csv file
 @param header_rows : number of rows used for header in the csv file (default = 1)
 @return header : NumPy Array (String) : headers
-@return timestamp : string Array : time stamp
+@return timestamp : numPy Array (DateTime) : time stamp
 @return data : NumPy 2D Array (float64)w : data
 '''
 def loadcsv(filename, header_rows = 1):
@@ -287,10 +288,22 @@ header, timestamp, raw_data = loadcsv("series_raw.csv")
 _, n = raw_data.shape
 data_pca, evals, evecs, z_score = PCA(raw_data, pca_dimensions, 120)
 
+#Determining +/- direction of each PCA index
+settings = np.array((1, -1, 1, -1, -1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1, 1, -1, -1, 1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1))
+signs = np.array([])
+for i in range(0, evecs[0].size):
+    signs = np.hstack((signs, np.array(settings * evecs[:,i]).sum()))
+    signs[i] = signs[i] / abs(signs[i])
+
+# apply signs to evecs, data_pca
+for i in range(0, evecs[0].size):
+    evecs[:, i] = signs[i] * evecs[:, i]
+    data_pca[:, i] = signs[i] * data_pca[:, i]
+    
 #Calculate Weighted Average
 composite_index = 0.0
 for i in range(0, pca_dimensions):
-    composite_index = composite_index + data_pca[:, i]*evals[i] #/100.0
+    composite_index = composite_index + data_pca[:, i] * evals[i] #/100.0
 
 #Save Data
 #timestamp: transform datetime to String for csv output
@@ -319,7 +332,9 @@ csv_pca_result = np.vstack((np.hstack((np.array(['Principal Components']), index
 np.savetxt("pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
 
 #Plot PCA result
-plot(data_pca)
+#plot(data_pca)
 
 #Draw Composite Results
 line_graph(composite_index, timestamp)
+
+print "=== Program Ended ==="
