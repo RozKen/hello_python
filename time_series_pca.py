@@ -15,9 +15,7 @@ time_series_pca.py
 - sum up output csv files
 
 ***TEMPOLARY ADJUSTMENT***
-=== avoid subdivision with zero (stdev could be 0) ===
-csv_data = csv_data[:1900]
-timestamp = timestamp[:1900]
+#MANUAL INPUT [12] (column index of S&P500 for standardization of compound index)
 """
 
 '''
@@ -260,8 +258,8 @@ def loadcsv(filename, header_rows = 1):
         timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
 
     # TEMPOLARY ADJUSTMENT === avoid subdivision with zero (stdev could be 0) ===
-    csv_data = csv_data[:1900]
-    timestamp = timestamp[:1900]
+    #csv_data = csv_data[:2500]
+    #timestamp = timestamp[:2500]
 
     #sort data according to time stamp
     if timestamp.size > 1:
@@ -336,6 +334,12 @@ for i in range(0, evecs[0].size):
 composite_index = 0.0
 for i in range(0, pca_dimensions):
     composite_index = composite_index + data_pca[:, i] * evals[i] #/100.0
+
+#Standardize Index
+#acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
+#TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
+argmin = np.argmin(raw_data[:,12])
+composite_index = composite_index / abs(composite_index[argmin]) * 100.0
 
 #Save Data
 #timestamp: transform datetime to String for csv output
