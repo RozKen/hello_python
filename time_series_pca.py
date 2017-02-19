@@ -35,7 +35,7 @@ def PCA(data, normalize_days=120):
     import numpy as np
     from scipy import linalg as la
     
-    print "===Principal Components Analysis==="
+    print "===Analizing Principal Components==="
     m, n = data.shape
     print "original data for PCA: ", m, "-days x", n, "-assets matrix"
     # Calculate Z-score
@@ -77,7 +77,7 @@ def plot(data):
     matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
     
-    print "===Plots==="
+    print "===Plotting==="
     
     _, n = data.shape
     clr1 = '#202682'
@@ -127,7 +127,7 @@ def line_graph(data, timestamp):
     import matplotlib.dates as mdates
     import datetime as dt
 
-    print "===Draw Composite Index Graph==="
+    print "===Drawing Line Graph==="
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -153,6 +153,7 @@ def line_graph(data, timestamp):
     datemin = dt.date(timestamp.min().year, 1, 1)
     datemax = dt.date(timestamp.max().year + 1, 1, 1)
     ax.set_xlim(datemin, datemax)
+    ax.set_ylim(-150, 150)
     
     #format the coordinates message box
     ax.format_xdata = mdates.DateFormatter('%Y/%m/%d')
@@ -174,7 +175,7 @@ def line_graph(data, timestamp):
 def loadcsv_no_header(filename, methods = 0):
     import numpy as np  #necessary for @return data (NumPy 2D Array)
        
-    print "===Load CSV==="
+    print "===Loading Data from CSV file (with no headers)==="
        
     if methods == 0:
         #===Use Numpy (loadtxt)===
@@ -220,7 +221,7 @@ def loadcsv(filename, header_rows = 1):
     import csv
     from datetime import datetime as dt
     
-    print "===Load CSV==="
+    print "===Loading Data from CSV Files==="
     
     header = np.array([])
     timestamp = np.array([])
@@ -255,10 +256,12 @@ def loadcsv(filename, header_rows = 1):
     for i in range(1, timestamp_s.size):
         timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
 
-    # TEMPOLARY ADJUSTMENT
+    ### ***TEMPOLARY ADJUSTMENT ###
     # 4437 days until raw_data acquired (2015/7/22) *** should be timestamp.size
-    #csv_data = csv_data[4855-4436:]
-    #timestamp = timestamp[4855-4436:]
+    # 2015/07/22 : 4436, 07/21 : 4435, 07/20 : 4434
+    # 2015/06/16 : 4410
+    #csv_data = csv_data[4855-4410:]
+    #timestamp = timestamp[4855-4410:]
 
     #sort data according to time stamp
     if timestamp.size > 1:
@@ -278,7 +281,7 @@ def load_settings(filename, header_rows = 1):
     import numpy as np  #necessary for @return data (NumPy 2D Array)
     import csv
     
-    print "===Load Settings==="
+    print "===Loading Setting==="
     settings = np.array([])
     count = 0
     
@@ -303,7 +306,7 @@ Main procedure
 import numpy as np
 #from datetime import datetime as dt
 
-pca_dimensions = 34
+pca_dimensions = 3
 normalization_days = 120
 #*** TEMPOLARY ADJUSTMENT*** 
 historical_start = 3407 #days since raw_data acquired (2012 ~ )
@@ -319,6 +322,8 @@ header, timestamp, raw_data = loadcsv("series_raw.csv")
 
 #Calculate and Save Historical PCA results
 index_historical = np.array([])
+###FOR TEST###
+eval_historical = np.array([])
 for history in range(historical_start, timestamp.size):
     #Principal Component Analysis
     _, n = raw_data.shape
@@ -334,6 +339,7 @@ for history in range(historical_start, timestamp.size):
     for i in range(0, evecs[0].size):
         evecs[:, i] = signs[i] * evecs[:, i]
         data_pca[:, i] = signs[i] * data_pca[:, i]
+
         
     #Calculate Weighted Average
     composite_index = np.zeros(data_pca[:,0].size)
@@ -348,8 +354,12 @@ for history in range(historical_start, timestamp.size):
     
     if history == historical_start:
         index_historical = np.hstack((index_historical, composite_index))
+        ###FOR TEST###
+        eval_historical = np.hstack((eval_historical, evals))
     else:
         index_historical = np.hstack((index_historical, composite_index[-1]))
+        ###FOR TEST###
+        eval_historical = np.vstack((eval_historical, evals))
 
 #Save Data to csv files
 #timestamp: transform datetime to String for csv output
@@ -377,12 +387,17 @@ csv_header[0] = 'Proportion of Variance'    #rename
 csv_pca_result = np.vstack((np.hstack((np.array(['Principal Components']), index_numbers)), np.vstack((csv_header, np.vstack((evals.T, evecs)).T)).T))
 np.savetxt("pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
 
-#historical Index
+#Historical Index
 csv_historical_header = np.array(['Date', 'Global Financial Markets Monitoring System'])
 csv_historical = np.vstack((csv_timestamp, index_historical)).T
 csv_historical = np.vstack((csv_historical_header, csv_historical))
 np.savetxt("historical_series.csv", csv_historical, delimiter=',', fmt='%s')
 
+###FOR TEST Historical Eigen Values (Proportions) ###
+csv_eval_historical_header = np.hstack((np.array(['Date']), index_numbers))
+csv_eval_historical = np.vstack((csv_timestamp[historical_start:], eval_historical.T)).T
+csv_eval_historical = np.vstack((csv_eval_historical_header, csv_eval_historical))
+np.savetxt("historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
 #Plot PCA result
 #plot(data_pca)
 
