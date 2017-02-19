@@ -3,7 +3,7 @@ time_series_pca.py
 @description A simple principle component analysis methods for time-series data
 @author Kenichi Yorozu
 @email rozken@gmail.com
-@notice Sourcefiles on this repository is provided as-is and no gurantee
+@notice Source files on this repository is provided as-is and no guarantee
         or warranty is provided for any damage that my arise from using it.
         This code is free for your own use, the only thing I ask is small
         credit somewhere for my work. An e-mail saying you found it useful
@@ -15,7 +15,10 @@ time_series_pca.py
 - sum up output csv files
 
 ***TEMPOLARY ADJUSTMENT***
+#4437 days until raw_data acquired (2015/7/22) *** should be timestamp.size
 #MANUAL INPUT [12] (column index of S&P500 for standardization of compound index)
+#assume 'settings' is 1D Column : load_settings
+historical_start = 3407 #days since raw_data acquired (2012 ~ )
 """
 
 '''
@@ -252,9 +255,10 @@ def loadcsv(filename, header_rows = 1):
     for i in range(1, timestamp_s.size):
         timestamp = np.vstack((timestamp, np.array(dt.strptime(timestamp_s[i], '%Y/%m/%d'))))
 
-    # TEMPOLARY ADJUSTMENT === avoid subdivision with zero (stdev could be 0) ===
-    #csv_data = csv_data[:2500]
-    #timestamp = timestamp[:2500]
+    # TEMPOLARY ADJUSTMENT
+    # 4437 days until raw_data acquired (2015/7/22) *** should be timestamp.size
+    #csv_data = csv_data[4855-4436:]
+    #timestamp = timestamp[4855-4436:]
 
     #sort data according to time stamp
     if timestamp.size > 1:
@@ -282,16 +286,14 @@ def load_settings(filename, header_rows = 1):
     with open(filename, 'rU') as csv_file:
         reader = csv.reader(csv_file, quoting=csv.QUOTE_ALL) #QUOTE_ALL is required for headers & date column
         for row in reader:
-            if count == 0:
-                count = 1
+            if count < header_rows:
+                count = count + 1
             else:
                 settings = np.hstack((settings, np.array(row)))
     
     #Remove 1st Column and Transform string to float64
+    #TEMPOLARY ADJUSTMENT *** assume 'settings' is 1D Column
     settings = settings[1:].astype(np.float64)
-    #else:
-    #    settings = settings[:, 1:]
-    print settings
     
     return settings
 
@@ -301,42 +303,55 @@ Main procedure
 import numpy as np
 #from datetime import datetime as dt
 
-pca_dimensions = 3
+pca_dimensions = 34
+normalization_days = 120
+#*** TEMPOLARY ADJUSTMENT*** 
+historical_start = 3407 #days since raw_data acquired (2012 ~ )
 
 print "===Program Initiated==="
+
+#Read Settings
+settings = load_settings("settings.csv")
 
 #Read Data
 #raw_data = loadcsv_no_header("series.csv", 0)
 header, timestamp, raw_data = loadcsv("series_raw.csv")
 
-#Principal Component Analysis
-_, n = raw_data.shape
-data_pca, evals, evecs, z_score = PCA(raw_data, 120)
-
-#Determining +/- direction of each PCA index
-settings = load_settings("settings.csv")
-signs = np.array([])
-for i in range(0, evecs[0].size):
-    signs = np.hstack((signs, np.array(settings * evecs[:,i]).sum()))
-    signs[i] = signs[i] / abs(signs[i])
-
-# apply signs to evecs, data_pca
-for i in range(0, evecs[0].size):
-    evecs[:, i] = signs[i] * evecs[:, i]
-    data_pca[:, i] = signs[i] * data_pca[:, i]
+#Calculate and Save Historical PCA results
+index_historical = np.array([])
+for history in range(historical_start, timestamp.size):
+    #Principal Component Analysis
+    _, n = raw_data.shape
+    data_pca, evals, evecs, z_score = PCA(raw_data[:history + 1], normalization_days)
     
-#Calculate Weighted Average
-composite_index = 0.0
-for i in range(0, pca_dimensions):
-    composite_index = composite_index + data_pca[:, i] * evals[i] #/100.0
+    #Determining +/- direction of each PCA index
+    signs = np.array([])
+    for i in range(0, evecs[0].size):
+        signs = np.hstack((signs, np.array(settings * evecs[:,i]).sum()))
+        signs[i] = signs[i] / abs(signs[i])
+    
+    # apply signs to evecs, data_pca
+    for i in range(0, evecs[0].size):
+        evecs[:, i] = signs[i] * evecs[:, i]
+        data_pca[:, i] = signs[i] * data_pca[:, i]
+        
+    #Calculate Weighted Average
+    composite_index = np.zeros(data_pca[:,0].size)
+    for i in range(0, pca_dimensions):
+        composite_index = composite_index + data_pca[:, i] * evals[i] #/100.0
+    
+    #Standardize Index
+    #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
+    #TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
+    argmin = np.argmin(raw_data[:,12])
+    composite_index = composite_index / abs(composite_index[argmin]) * 100.0
+    
+    if history == historical_start:
+        index_historical = np.hstack((index_historical, composite_index))
+    else:
+        index_historical = np.hstack((index_historical, composite_index[-1]))
 
-#Standardize Index
-#acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
-#TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
-argmin = np.argmin(raw_data[:,12])
-composite_index = composite_index / abs(composite_index[argmin]) * 100.0
-
-#Save Data
+#Save Data to csv files
 #timestamp: transform datetime to String for csv output
 csv_timestamp = np.array([])
 for i in range(0, timestamp.size):
@@ -362,10 +377,16 @@ csv_header[0] = 'Proportion of Variance'    #rename
 csv_pca_result = np.vstack((np.hstack((np.array(['Principal Components']), index_numbers)), np.vstack((csv_header, np.vstack((evals.T, evecs)).T)).T))
 np.savetxt("pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
 
+#historical Index
+csv_historical_header = np.array(['Date', 'Global Financial Markets Monitoring System'])
+csv_historical = np.vstack((csv_timestamp, index_historical)).T
+csv_historical = np.vstack((csv_historical_header, csv_historical))
+np.savetxt("historical_series.csv", csv_historical, delimiter=',', fmt='%s')
+
 #Plot PCA result
 #plot(data_pca)
 
 #Draw Composite Results
-line_graph(composite_index, timestamp)
+line_graph(index_historical, timestamp)
 
 print "=== Program Ended ==="
