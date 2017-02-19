@@ -22,14 +22,13 @@ time_series_pca.py
 @fn PCA
 @brief Compose principal components with 120-day data
 @param data : 2D NumPy array : vertical:date, horizontal:asset class, economic indicators, or etc.
-@param pca_dimension : integer : dimension of principal components
 @param normalize_days : integer : days to be used in normalization of PCA
 @return np.dot(evecs.T, z_score.T).T : 2D NumPy array : Time series of principal components (default is 3 series)
 @return evals : NumPy array : Eigen Values of covariance matrix used for analysis
 @return evecs : 2D NumPy array : Eigen Vectors of covariance matrix used for analysis
 @return z_score : 2D NumPy array : Normalized data of input "data"
 '''
-def PCA(data, pca_dimension=3, normalize_days=120):
+def PCA(data, normalize_days=120):
     import numpy as np
     from scipy import linalg as la
     
@@ -60,10 +59,6 @@ def PCA(data, pca_dimension=3, normalize_days=120):
     # sort eigenvectors according to same index
     evecs = evecs[:,idx]
     
-    #select the first n eigenvalues & eigenvectors ( n is desired dimension
-    # of rescaled data array, or dims_rescaled_data)
-    #evals = evals[:pca_dimension]
-    #evecs = evecs[:, :pca_dimension]
     # carry out the transformation on the data using eigenvectors
     # and return the re-scaled data, eigenvalues, and eigenvectors
     return np.dot(evecs.T, z_score.T).T, evals, evecs, z_score
@@ -146,7 +141,7 @@ def line_graph(data, timestamp):
     #format ticks
     years = mdates.YearLocator()    #every year
     months = mdates.MonthLocator()  #every month
-    yearsFmt = mdates.DateFormatter('%Y')
+    yearsFmt = mdates.DateFormatter('%y')
     
     ax.xaxis.set_major_locator(years)
     ax.xaxis.set_major_formatter(yearsFmt)
@@ -316,7 +311,7 @@ header, timestamp, raw_data = loadcsv("series_raw.csv")
 
 #Principal Component Analysis
 _, n = raw_data.shape
-data_pca, evals, evecs, z_score = PCA(raw_data, pca_dimensions, 120)
+data_pca, evals, evecs, z_score = PCA(raw_data, 120)
 
 #Determining +/- direction of each PCA index
 settings = load_settings("settings.csv")
