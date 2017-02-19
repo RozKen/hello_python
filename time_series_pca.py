@@ -217,7 +217,7 @@ def loadcsv_no_header(filename, methods = 0):
 @param header_rows : number of rows used for header in the csv file (default = 1)
 @return header : NumPy Array (String) : headers
 @return timestamp : numPy Array (DateTime) : time stamp
-@return data : NumPy 2D Array (float64)w : data
+@return data : NumPy 2D Array (float64) : data
 '''
 def loadcsv(filename, header_rows = 1):
     import numpy as np  #necessary for @return data (NumPy 2D Array)
@@ -271,6 +271,38 @@ def loadcsv(filename, header_rows = 1):
     return header, timestamp, csv_data
 
 '''
+@fn load_settings
+@brief load csv data for setting
+@param filename : path_to_the_csv_file.csv : file path to the csv file
+@param header_rows : number of rows used for header in the csv file (default = 1)
+@return settings : NumPy Array (float64) : settings
+'''
+def load_settings(filename, header_rows = 1):
+    import numpy as np  #necessary for @return data (NumPy 2D Array)
+    import csv
+    
+    print "===Load Settings==="
+    settings = np.array([])
+    count = 0
+    
+    #Read CSV Data
+    with open(filename, 'rU') as csv_file:
+        reader = csv.reader(csv_file, quoting=csv.QUOTE_ALL) #QUOTE_ALL is required for headers & date column
+        for row in reader:
+            if count == 0:
+                count = 1
+            else:
+                settings = np.hstack((settings, np.array(row)))
+    
+    #Remove 1st Column and Transform string to float64
+    settings = settings[1:].astype(np.float64)
+    #else:
+    #    settings = settings[:, 1:]
+    print settings
+    
+    return settings
+
+'''
 Main procedure
 '''
 import numpy as np
@@ -289,7 +321,7 @@ _, n = raw_data.shape
 data_pca, evals, evecs, z_score = PCA(raw_data, pca_dimensions, 120)
 
 #Determining +/- direction of each PCA index
-settings = np.array((1, -1, 1, -1, -1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1, 1, -1, -1, 1, 1, 1, 1, 1, -1, -1, 1, -1, -1, -1, -1))
+settings = load_settings("settings.csv")
 signs = np.array([])
 for i in range(0, evecs[0].size):
     signs = np.hstack((signs, np.array(settings * evecs[:,i]).sum()))
