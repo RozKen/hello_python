@@ -12,7 +12,9 @@ time_series_pca.py
 
 """
 @TODO
-- sum up output csv files
+- review methods for +/- direction of each PCA index
+- review level adjustment on composite index with regression
+- eliminate Manual Inputs
 
 ***TEMPOLARY ADJUSTMENT***
 #4437 days until raw_data acquired (2015/7/22) *** should be timestamp.size
@@ -43,7 +45,7 @@ def PCA(data, normalize_days=120):
     m_n, n_n = data_for_normalize.shape
     print "- on normalization: ", m_n, "-days x", n_n, "-assets matrix is used."
     z_score =(data - data_for_normalize.mean(axis = 0)) / data_for_normalize.std(axis = 0)
-    z_score_for_normalize = z_score[m - normalize_days:]    #extract z-score used for normalization
+    z_score_for_normalize = z_score[m - normalize_days:]   #extract z-score used for normalization
         
     # calculate the covariance matrix (day's direction is vertical: rowvar = 0, unbiased: bias = 0)
     covMat = np.cov(z_score_for_normalize, rowvar = 0, bias = 0)
@@ -164,6 +166,9 @@ def line_graph(data, timestamp):
         
     #Show Plot Image
     plt.show()
+    
+    #Free Memory
+    plt.close()
     
 '''
 @fn loadcsv_no_header
@@ -307,6 +312,7 @@ import numpy as np
 #from datetime import datetime as dt
 
 pca_dimensions = 3
+
 normalization_days = 120
 #*** TEMPOLARY ADJUSTMENT*** 
 historical_start = 3407 #days since raw_data acquired (2012 ~ )
@@ -328,6 +334,10 @@ for history in range(historical_start, timestamp.size):
     #Principal Component Analysis
     _, n = raw_data.shape
     data_pca, evals, evecs, z_score = PCA(raw_data[:history + 1], normalization_days)
+
+    #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
+    #TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
+    argmin = np.argmin(raw_data[:,12])
     
     #Determining +/- direction of each PCA index
     signs = np.array([])
@@ -339,7 +349,8 @@ for history in range(historical_start, timestamp.size):
     for i in range(0, evecs[0].size):
         evecs[:, i] = signs[i] * evecs[:, i]
         data_pca[:, i] = signs[i] * data_pca[:, i]
-
+        #Standardize Index
+        #data_pca[:, i] = data_pca[:, i] / abs(data_pca[argmin, i]) * 100.0
         
     #Calculate Weighted Average
     composite_index = np.zeros(data_pca[:,0].size)
@@ -347,9 +358,6 @@ for history in range(historical_start, timestamp.size):
         composite_index = composite_index + data_pca[:, i] * evals[i] #/100.0
     
     #Standardize Index
-    #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
-    #TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
-    argmin = np.argmin(raw_data[:,12])
     composite_index = composite_index / abs(composite_index[argmin]) * 100.0
     
     if history == historical_start:
@@ -400,6 +408,8 @@ csv_eval_historical = np.vstack((csv_eval_historical_header, csv_eval_historical
 np.savetxt("historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
 #Plot PCA result
 #plot(data_pca)
+
+line_graph(composite_index, timestamp)
 
 #Draw Composite Results
 line_graph(index_historical, timestamp)
