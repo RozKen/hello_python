@@ -119,7 +119,7 @@ def plot(data):
 @fn line_graph
 @brief show and save line graph
 @param data : 2D NumPy array : vertical:date
-@param timestamp : numPy Array (DateTime) : time stam
+@param timestamp : numPy Array (DateTime) : time stamp
 @param filename : filename for save png
 @param IsSave : whether or not save graph as png (default : True)
 @param IsShow : whether or not show graph on display (default: True)
@@ -342,14 +342,11 @@ header, timestamp, raw_data = loadcsv("series_raw.csv")
 #Calculate and Save Historical PCA results
 index_historical = np.array([])
 eval_historical = np.array([])
+evec_historical = np.array([])
 for history in range(historical_start, timestamp.size):
     #Principal Component Analysis
     _, n = raw_data.shape
     data_pca, evals, evecs, z_score = PCA(raw_data[:history + 1], normalization_days)
-
-    #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
-    #TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
-    argmin = np.argmin(raw_data[:,12])
     
     #Determining +/- direction of each PCA index
     signs = np.array([])
@@ -365,50 +362,108 @@ for history in range(historical_start, timestamp.size):
         pca_i_average = np.average(data_pca[:, i])
         pca_i_stdev = np.std(data_pca[:, i])
         data_pca[:, i] = (data_pca[:, i] - pca_i_average) / pca_i_stdev * 100.0
-        #data_pca[:, i] = data_pca[:, i] / abs(data_pca[argmin, i]) * 100.0
+        
         
     #Calculate Weighted Average
     composite_index = np.zeros(data_pca[:,0].size)
     for i in range(0, pca_dimensions):
         composite_index = composite_index + data_pca[:, i] * evals[i]
     
-    #Standardize Index
-    # - Set Standard Deviation as Historical Standard Deviation
-    #composite_stdev = np.std(composite_index)
-    #composite_index = composite_index / composite_stdev
+    ###how to deal with new PCA series which is not consistent with historical series
+    methods = 201
     
-    if history == historical_start:
-        # - Set Zero as historical average
-        #composite_zero = np.average(composite_index[:-normalization_days])
-        #composite_index = composite_index - composite_zero
-
-        # - Set -100.0 for minimum-S&P500 day (2009/3/9)
-        composite_denom = composite_index[argmin]
-        #composite_denom = np.average(composite_index[argmin - normalization_days/2: argmin + normalization_days/2])
-        composite_index = composite_index / composite_denom * (-100.0)
+    ###Output Images for Debug
+    IsDebug = False
     
-    #fir composite_index to index_historical
-    if history != historical_start:
-        p = np.poly1d(np.polyfit(composite_index[:-1], index_historical, 1))
-        old = composite_index[:-1] ###TEMPOLARY###
-        composite_index = p(composite_index)
+    if (methods - methods % 100) / 100 == 1:  #100, 101, 110, 111
+        ###    set -100.0 on minimum S&P500 day / average of normalization_days around minimum S&P 500 days for historical
+        ###    fit new PCA to historical series
 
-    ###TEMPOLARY: output graphs on regression###
-    #if history % 100 == 0:
-    #    temp = np.vstack((index_historical, old, composite_index[:-1]))
-    #    line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
+        #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
+        ###TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
+        argmin = np.argmin(raw_data[:,12])
 
-    #elif history >= 4700:
-    #    temp = np.vstack((index_historical, old, composite_index[:-1]))
-    #    line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
-    
+        
+        if history == historical_start:
+            if (methods - 100 - methods % 10)/10 == 0:  #100, 101
+                # - Set -100.0 for minimum-S&P500 day (2009/3/9)
+                composite_denom = composite_index[argmin]
+            else:   #110, 111
+                # - Set -100.0 for average of normalization_days around minimum-S&P500 day
+                composite_denom = np.average(composite_index[argmin - normalization_days/2: argmin + normalization_days/2])
+            composite_index = composite_index / composite_denom * (-100.0)
+        
+        #fit composite_index to index_historical
+        if history != historical_start:
+            p = np.poly1d(np.polyfit(composite_index[:-1], index_historical, 1))
+            if IsDebug:###DEBUG###
+                old = composite_index[:-1] 
+            composite_index = p(composite_index)
+            
+        ###DEBUG: output graphs on regression###
+        if IsDebug:
+            if history % 100 == 0:
+                temp = np.vstack((index_historical, old, composite_index[:-1]))
+                line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
+        
+            elif history >= 4700:
+                temp = np.vstack((index_historical, old, composite_index[:-1]))
+                line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
+
+    elif (methods - methods % 100) / 100 == 2:
+        ###    fit historical series so as to (max, min) or (average of normalization_days around max, min)== (100.0, -100.0)
+        ###    fit new PCA so as to (max, min) == (100.0, -100.0)
+        
+        #Fit new PCA
+        if (methods - 100 - methods % 10)/10 == 0:  #200, 201
+            composite_max = np.max(composite_index)
+            composite_min = np.min(composite_index)
+        else:   #210, 211
+            peak = np.argmax(composite_index)
+            trough = np.argmin(composite_index)
+            composite_max = np.average(composite_index[max(peak - normalization_days/2, 0) : min(peak + normalization_days/2, composite_index.size)])
+            composite_min = np.average(composite_index[max(trough - normalization_days/2, 0) : min(trough + normalization_days/2, composite_index.size)])
+        
+        composite_peak2trough = composite_max - composite_min
+        if IsDebug: ###DEBUG###
+            old = composite_index
+        
+        composite_index = (composite_index - composite_min) / composite_peak2trough * 200.0 -100.0
+                            
+        ###DEBUG: output graphs on regression###
+        if IsDebug:
+            if history % 100 == 0:
+                temp = np.vstack((index_historical, old, composite_index[:-1]))
+                line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
+        
+            elif history >= 4700:
+                temp = np.vstack((index_historical, old, composite_index[:-1]))
+                line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
+
+    elif (methods - methods % 100) / 100 == 3:
+        ###    create historical series by averaged evecs
+        
+        ##average evec_historical for axis 3?
+        ##np.dot(averaged_evecs.T, z_score.T).T
+        ##fit with historical index (normalization_days ?)
+        
+        #dummy
+        composite_index = composite_index
+    #Stack new PCA series to historical index
     if history == historical_start:
         index_historical = np.hstack((index_historical, composite_index))
         eval_historical = np.hstack((eval_historical, evals))
+        evec_historical = evecs
+
     else:
-        #index_historical = np.hstack((index_historical, index_historical[-1] + composite_index[-1] - composite_index[-2]))
-        index_historical = np.hstack((index_historical, composite_index[-1]))
+        if methods % 10 == 0:
+            #add latest value of new PCA to historical series
+            index_historical = np.hstack((index_historical, composite_index[-1]))
+        else:   #methods % 10 == 1:
+            #add latest move of new PCA to historical series
+            index_historical = np.hstack((index_historical, index_historical[-1] + composite_index[-1] - composite_index[-2]))
         eval_historical = np.vstack((eval_historical, evals))
+        evec_historical = np.dstack((evec_historical, evecs))
 
 #Save Data to csv files
 #timestamp: transform datetime to String for csv output
@@ -450,13 +505,11 @@ np.savetxt("historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
 
 #Plot PCA result
 #plot(data_pca)
-print timestamp.size
-print composite_index.shape
+
+#Draw Composite Results
 line_graph(composite_index, timestamp)
 
-print timestamp.size
-print index_historical.shape
-#Draw Composite Results
+#Draw Historical Cumulative Result
 line_graph(index_historical, timestamp, "historical gfms")
 
 print "=== Program Ended ==="
