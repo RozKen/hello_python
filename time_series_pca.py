@@ -9,6 +9,7 @@ time_series_pca.py
         credit somewhere for my work. An e-mail saying you found it useful
         would also be much appreciated by myself.
 '''
+from pandas.tslib import string_types
 
 '''
 @TODO
@@ -171,7 +172,7 @@ def line_graph(data, timestamp, filename = "composite index", IsSave = True, IsS
     
     #format the coordinates message box
     ax.format_xdata = mdates.DateFormatter('%Y/%m/%d')
-    #ax.gird(True)
+    #ax.grid(True)
     
     if IsSave:
         #Save Plot Image
@@ -183,7 +184,92 @@ def line_graph(data, timestamp, filename = "composite index", IsSave = True, IsS
     
     #Free Memory
     plt.close()
+
+'''
+
+'''
+def heatmap(data, timestamp, header, filename = "heatmap", IsSave = True, IsShow = True):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import pandas as pd
+    import datetime as dt
     
+    print "===Drawing Heatmap==="
+    
+    #convert timestamp data for x-axis
+    dates = mdates.date2num(timestamp)
+    ### TEMPOLARY ADJUSTMENT
+    header = np.array(['EUR','JPY',2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33])
+    
+    #build up data for heatmap
+    df = []
+    m, n = data.shape   #assume data is 2-dimensional
+    for i in range(m):
+        for j in range(n):
+            df.append({
+                    'Date'      : dates[i],
+                    'Header'    : header[j],
+                    'Value'     : data[i, j]
+                })
+
+    df = pd.DataFrame(df)
+    #df['Date'] = mdates.num2date(df['Date'])
+    df['Date'] = df['Date'].astype(int)
+    df['Header'] = df['Header'].astype(str)
+    df['Value'] = df['Value'].astype(float)
+    print df
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    xlabel = pd.DataFrame(mdates.num2date(df['Date'])).astype(str)
+    interval = 30
+    #for i in (len(xlabel.column)):
+    #    if i % interval != 0:
+    #        xlabel[i] = ''
+    
+    df_pivot = pd.pivot_table(data=df, values='Value', columns='Date', index='Header', aggfunc=np.mean)
+    sns.heatmap(df_pivot, xticklabels=interval, vmin=-2.0, vmax = 2.0, square=False, ax = ax)
+    #xticklabels = xlabel
+    
+    #format labels
+    ax.set_xlabel('Date')
+    ax.set_ylabel(filename)
+    
+    #format ticks
+    years = mdates.YearLocator()    #every year
+    months = mdates.MonthLocator()  #every month
+    yearsFmt = mdates.DateFormatter('%y')
+    monthsFmt = mdates.DateFormatter('%m')
+    
+    #ax.xaxis.set_major_locator(years)
+    #ax.xaxis.set_major_formatter(yearsFmt)
+    #ax.xaxis.set_minor_locator(months)
+    #ax.xaxis.set_major_locator(months)
+    #ax.xaxis.set_major_formatter(monthsFmt)
+    
+    datemin = dt.date(timestamp.min().year, 1, 1)
+    datemax = dt.date(timestamp.max().year + 1, 1, 1)
+    #ax.set_xlim(datemin, datemax)
+    #ax.set_ylim(-150, 150)
+    
+    #format the coordinates message box
+    fig.autofmt_xdate()
+    #ax.format_xdata = mdates.DateFormatter('%Y/%m/%d')
+    #ax.grid(True)
+    
+    if IsSave:
+        #Save Plot Image
+        plt.savefig(filename + ".png", dpi=300)
+    
+    if IsShow:
+        #Show Plot Image
+        plt.show()
+    
+    #Free Memory
+    plt.close()
+
 '''
 @fn loadcsv_no_header
 @brief load csv data with no header
@@ -329,7 +415,7 @@ pca_dimensions = 3
 
 normalization_days = 120
 ### TEMPOLARY ADJUSTMENT ### 
-historical_start = 3407 #days since raw_data acquired (2012 ~ )
+historical_start = 4867###3407 #days since raw_data acquired (2012 ~ )
 
 print "===Program Initiated==="
 
@@ -372,7 +458,7 @@ for history in range(historical_start, timestamp.size):
     methods = 201
     
     ###Output Images for Debug
-    IsDebug = True
+    IsDebug = False
     
     if (methods - methods % 1000) / 1000 == 0:
         #Calculate Weighted Average
@@ -462,7 +548,7 @@ for history in range(historical_start, timestamp.size):
                             
         ###DEBUG: output graphs on regression###
         if IsDebug:
-            if history > historical_start and history % 100 == 0:
+            if history > historical_start:  # and history % 100 == 0:
                 temp = np.vstack((index_historical, old[:-1], composite_index[:-1]))
                 line_graph(temp, timestamp[:history], "regression result " + str(history), IsShow = False)
 
@@ -481,6 +567,9 @@ for history in range(historical_start, timestamp.size):
             index_historical = np.hstack((index_historical, index_historical[-1] + composite_index[-1] - composite_index[-2]))
         eval_historical = np.vstack((eval_historical, evals))
         evec_historical = np.dstack((evec_historical, evecs))
+
+### TEMPOLARY ADJUSTMENT
+heatmap(z_score[4600:], timestamp[4600:], header)
 
 #Save Data to csv files
 #timestamp: transform datetime to String for csv output
