@@ -162,7 +162,7 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     dates = mdates.date2num(timestamp)
     
     ### TEMPOLARY ADJUSTMENT ###
-    header = np.array(['EUR','JPY',2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33])
+    header = np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33])
     
     #build up data for heatmap
     df = []
@@ -219,6 +219,59 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     fig.autofmt_xdate()
     #ax.format_xdata = mdates.DateFormatter('%Y/%m/%d')
     #ax.grid(True)
+    
+    if IsSave:
+        #Save Plot Image
+        plt.savefig(folder_path + filename + ".png", dpi=300)
+    
+    if IsShow:
+        #Show Plot Image
+        plt.show()
+    
+    #Free Memory
+    plt.close()
+    
+'''
+@fn heatmap
+@brief show and save heatmap
+@param data : 2D NumPy array : correlation Matrix
+@param filename : filename for save png
+@param folder_path : folder path for save png
+@param IsSave : whether or not save graph as png (default : True)
+@param IsShow : whether or not show graph on display (default: True)
+@return none
+'''
+def corMat(data, filename = "correlation matrix", folder_path = "graphs/", IsSave = True, IsShow = True):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import numpy as np
+    
+    print "===Drawing Correlation Coefficients Matrix==="
+    
+    #build up data for heatmap
+    df = []
+    m, n = data.shape   #assume data is 2-dimensional
+    for i in range(m):
+        for j in range(n):
+            df.append({
+                    'x'    : i,
+                    'y'    : j,
+                    'value': data[i, j]
+                })
+
+    df = pd.DataFrame(df)
+    df['x'] = df['x'].astype(int)
+    df['y'] = df['y'].astype(int)
+    df['value'] = df['value'].astype(float)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+        
+    df_pivot = pd.pivot_table(data=df, values='value', columns='x', index='y', aggfunc=np.mean)
+    sns.heatmap(df_pivot, vmin=-1.0, vmax = 1.0, square=False, ax = ax)
+
+    ax.grid(True)
     
     if IsSave:
         #Save Plot Image

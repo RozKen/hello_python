@@ -22,10 +22,10 @@ analize.py
 #assume 'settings' is 1D Column : load_settings
 h_start = 3407 #days since raw_data acquired (2012 ~ )
 '''
-
-import time_series_pca as pc    #Load PCA Core h_method
+import statistics as st         #Load Statistics Method
+import time_series_pca as pc    #Load PCA Core Method
 import loader as ld             #Load CSV Handlers
-import visualizer as vz         #Load Graph-drawing h_methods
+import visualizer as vz         #Load Graph-drawing Methods
 import numpy as np
 #from datetime import datetime as dt
 
@@ -60,6 +60,16 @@ settings = ld.settings(input_folder + "settings.csv")
 
 #Read Data
 header, timestamp, raw_data = ld.csv(input_folder + "series_raw.csv")
+
+'''
+Analyze Original Data
+'''
+#Draw Original Data
+print st.summary(raw_data)
+
+vz.line_graph(raw_data.T, timestamp)
+
+vz.corMat(np.corrcoef(st.corMat(raw_data, normalize_days)))
 
 '''
 Execute PCA
@@ -154,7 +164,7 @@ else:
             eval_historical = np.vstack((eval_historical, evals))
             evec_historical = np.dstack((evec_historical, evecs))
 
-### TEMPOLARY ADJUSTMENT
+### TEMPOLARY ADJUSTMENT ###
 vz.heatmap(z_score[4600:], timestamp[4600:], header)
 
 '''

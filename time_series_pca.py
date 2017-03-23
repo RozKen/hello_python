@@ -64,7 +64,7 @@ def PCA(data, normalize_days=120):
 @return evals : NumPy array : Eigen Values of covariance matrix used for analysis
 @return evecs : 2D NumPy array : Eigen Vectors of covariance matrix used for analysis
 @return z_score : 2D NumPy array : Normalized data of input "data"
-@return composite_index : 1D NumPy array : 
+@return composite_index : 1D NumPy array : weighted average of principal components
 '''
 def PCAwithComp(data, settings, normalize_days = 120, pca_dimensions = 3):
     import numpy as np
