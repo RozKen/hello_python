@@ -12,7 +12,7 @@ time_series_pca.py
 
 '''
 @fn PCA
-@brief Compose principal components with 120-day data
+@brief Execute Principal Component Analysis
 @param data : 2D NumPy array : vertical:date, horizontal:asset class, economic indicators, or etc.
 @param normalize_days : integer : days to be used in normalization of PCA
 @return np.dot(evecs.T, z_score.T).T : 2D NumPy array : Time series of principal components (default is 3 series)
@@ -55,3 +55,41 @@ def PCA(data, normalize_days=120):
     # and return the re-scaled data, eigenvalues, and eigenvectors
     return np.dot(evecs.T, z_score.T).T, evals, evecs, z_score
 
+'''
+@fn PCAwithComp
+@brief Execute PCA and Compose index
+@param data : 2D NumPy array : vertical:date, horizontal:asset class, economic indicators, or etc.
+@param normalize_days : integer : days to be used in normalization of PCA
+@return np.dot(evecs.T, z_score.T).T : 2D NumPy array : Time series of principal components (default is 3 series)
+@return evals : NumPy array : Eigen Values of covariance matrix used for analysis
+@return evecs : 2D NumPy array : Eigen Vectors of covariance matrix used for analysis
+@return z_score : 2D NumPy array : Normalized data of input "data"
+@return composite_index : 1D NumPy array : 
+'''
+def PCAwithComp(data, settings, normalize_days = 120, pca_dimensions = 3):
+    import numpy as np
+    
+    #Principal Component Analysis
+    data_pca, evals, evecs, z_score = PCA(data, normalize_days)
+    
+    #Determining +/- direction of each PCA index
+    signs = np.array([])
+    for i in range(0, evecs[0].size):
+        signs = np.hstack((signs, np.array(settings * evecs[:,i]).sum()))
+        signs[i] = signs[i] / abs(signs[i])
+    
+    # apply signs to evecs, 
+    for i in range(0, evecs[0].size):
+        evecs[:, i] = signs[i] * evecs[:, i]
+        data_pca[:, i] = signs[i] * data_pca[:, i]
+        #Translate as Z-score    ###TEMPOLARY######################################
+        pca_i_average = np.average(data_pca[:, i])
+        pca_i_stdev = np.std(data_pca[:, i])
+        data_pca[:, i] = (data_pca[:, i] - pca_i_average) / pca_i_stdev * 100.0
+
+    #Calculate Weighted Average
+    composite_index = np.zeros(data_pca[:,0].size)
+    for i in range(0, pca_dimensions):
+        composite_index = composite_index + data_pca[:, i] * evals[i]
+
+    return np.dot(evecs.T, z_score.T).T, evals, evecs, z_score, composite_index

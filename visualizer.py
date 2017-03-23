@@ -9,7 +9,6 @@ visualizer.py
         credit somewhere for my work. An e-mail saying you found it useful
         would also be much appreciated by myself.
 '''
-import numpy as np
 
 '''
 @fn plot
@@ -155,6 +154,7 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     import matplotlib.dates as mdates
     import pandas as pd
     import datetime as dt
+    import numpy as np
     
     print "===Drawing Heatmap==="
     
@@ -180,7 +180,6 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     df['Date'] = df['Date'].astype(int)
     df['Header'] = df['Header'].astype(str)
     df['Value'] = df['Value'].astype(float)
-    print df
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
