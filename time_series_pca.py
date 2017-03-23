@@ -73,9 +73,13 @@ def PCA(data, normalize_days=120):
 @fn plot
 @brief show and save plotted time-series data
 @param data : 2D NumPy array : vertical:date, horizontal:asset class, economic indicators, or etc.
+@param filename : filename for save png
+@param folder_path : folder path for save png
+@param IsSave : whether or not save graph as png (default : True)
+@param IsShow : whether or not show graph on display (default: True)
 @return none
 '''
-def plot(data):
+def plot(data, filename ="plot", folder_path="graphs/", IsSave = True, IsShow = True):
     from mpl_toolkits.mplot3d import Axes3D
     ### FOR MAC ###
     #import matplotlib
@@ -113,11 +117,16 @@ def plot(data):
     else:
         ax = fig.add_subplot(111)
     
-    #Save Plot Image
-    plt.savefig("plot.png", dpi=300)
+    if IsSave:
+        #Save Plot Image
+        plt.savefig(folder_path + filename + ".png", dpi=300)
     
-    #Show Plot Image
-    plt.show()
+    if IsShow:
+        #Show Plot Image
+        plt.show()
+    
+    #Free Memory
+    plt.close()
     
 '''
 @fn line_graph
@@ -125,11 +134,12 @@ def plot(data):
 @param data : 2D NumPy array : vertical:date
 @param timestamp : numPy Array (DateTime) : time stamp
 @param filename : filename for save png
+@param folder_path : folder path for save png
 @param IsSave : whether or not save graph as png (default : True)
 @param IsShow : whether or not show graph on display (default: True)
 @return none
 '''    
-def line_graph(data, timestamp, filename = "composite index", IsSave = True, IsShow = True):
+def line_graph(data, timestamp, filename = "composite index", folder_path="graphs/", IsSave = True, IsShow = True):
     ### FOR MAC ###
     #import matplotlib
     #matplotlib.use('TkAgg')
@@ -176,7 +186,7 @@ def line_graph(data, timestamp, filename = "composite index", IsSave = True, IsS
     
     if IsSave:
         #Save Plot Image
-        plt.savefig(filename + ".png", dpi=300)
+        plt.savefig(folder_path + filename + ".png", dpi=300)
     
     if IsShow:
         #Show Plot Image
@@ -186,9 +196,18 @@ def line_graph(data, timestamp, filename = "composite index", IsSave = True, IsS
     plt.close()
 
 '''
-
+@fn heatmap
+@brief show and save heatmap
+@param data : 2D NumPy array : vertical:date
+@param timestamp : numPy Array (DateTime) : time stamp
+@param header : name of each columns
+@param filename : filename for save png
+@param folder_path : folder path for save png
+@param IsSave : whether or not save graph as png (default : True)
+@param IsShow : whether or not show graph on display (default: True)
+@return none
 '''
-def heatmap(data, timestamp, header, filename = "heatmap", IsSave = True, IsShow = True):
+def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs/", IsSave = True, IsShow = True):
     import seaborn as sns
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
@@ -199,7 +218,8 @@ def heatmap(data, timestamp, header, filename = "heatmap", IsSave = True, IsShow
     
     #convert timestamp data for x-axis
     dates = mdates.date2num(timestamp)
-    ### TEMPOLARY ADJUSTMENT
+    
+    ### TEMPOLARY ADJUSTMENT ###
     header = np.array(['EUR','JPY',2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33])
     
     #build up data for heatmap
@@ -261,7 +281,7 @@ def heatmap(data, timestamp, header, filename = "heatmap", IsSave = True, IsShow
     
     if IsSave:
         #Save Plot Image
-        plt.savefig(filename + ".png", dpi=300)
+        plt.savefig(folder_path + filename + ".png", dpi=300)
     
     if IsShow:
         #Show Plot Image
@@ -415,19 +435,21 @@ pca_dimensions = 3
 
 normalization_days = 120
 ### TEMPOLARY ADJUSTMENT ### 
-historical_start = 4867###3407 #days since raw_data acquired (2012 ~ )
+historical_start = 3407 #days since raw_data acquired (2012 ~ )
 
 print "===Program Initiated==="
 
+#Path to folders
+output_folder = "data_output/"
+input_folder = "data_input/"
+#folder_path = "graphs/"        #default value in plotting functions
+
 #Read Settings
-settings = load_settings("settings.csv")
+settings = load_settings(input_folder + "settings.csv")
 
 #Read Data
 #raw_data = loadcsv_no_header("series.csv", 0)
-header, timestamp, raw_data = loadcsv("series_raw.csv")
-
-### TEMPOLARY ###
-#timestamp = timestamp[:3808]
+header, timestamp, raw_data = loadcsv(input_folder + "series_raw.csv")
 
 #Calculate and Save Historical PCA results
 index_historical = np.array([])
@@ -571,7 +593,6 @@ for history in range(historical_start, timestamp.size):
 ### TEMPOLARY ADJUSTMENT
 heatmap(z_score[4600:], timestamp[4600:], header)
 
-#Save Data to csv files
 #timestamp: transform datetime to String for csv output
 csv_timestamp = np.array([])
 for i in range(0, timestamp.size):
@@ -585,36 +606,36 @@ for i in range(2, evals.size+1):
 #Principal Components
 csv_series_result = np.vstack((csv_timestamp, composite_index, data_pca.T)).T
 csv_series_result = np.vstack((np.hstack((np.array(['Date', 'Compound Index']), index_numbers)), csv_series_result))
-np.savetxt("series_results.csv", csv_series_result, delimiter=',', fmt='%s')
+np.savetxt(output_folder + "series_results.csv", csv_series_result, delimiter=',', fmt='%s')
 
 #Z-scores
 csv_header = np.hstack((np.array(['Date']), header))
 csv_z_score = np.vstack((csv_header, np.vstack((csv_timestamp, z_score.T)).T))
-np.savetxt("z-score.csv", csv_z_score, delimiter=',', fmt='%s')
+np.savetxt(output_folder + "z-score.csv", csv_z_score, delimiter=',', fmt='%s')
 
 #PCA_result
 csv_header[0] = 'Proportion of Variance'    #rename
 csv_pca_result = np.vstack((np.hstack((np.array(['Principal Components']), index_numbers)), np.vstack((csv_header, np.vstack((evals.T, evecs)).T)).T))
-np.savetxt("pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
+np.savetxt(output_folder + "pca_result.csv", csv_pca_result, delimiter=',', fmt='%s')
 
 #Historical Index
 csv_historical_header = np.array(['Date', 'Global Financial Markets Monitoring System'])
 csv_historical = np.vstack((csv_timestamp, index_historical)).T
 csv_historical = np.vstack((csv_historical_header, csv_historical))
-np.savetxt("historical_series.csv", csv_historical, delimiter=',', fmt='%s')
+np.savetxt(output_folder + "historical_series.csv", csv_historical, delimiter=',', fmt='%s')
 
 #Historical Eigen Values (Proportions)
 csv_eval_historical_header = np.hstack((np.array(['Date']), index_numbers))
 csv_eval_historical = np.vstack((csv_timestamp[historical_start:], eval_historical.T)).T
 csv_eval_historical = np.vstack((csv_eval_historical_header, csv_eval_historical))
-np.savetxt("historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
+np.savetxt(output_folder + "historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
 
 #Historical Eigen Vectors
 csv_evec_historical_header = np.hstack((np.array(['Date']), header))
 for i in range(0, pca_dimensions):
     csv_evec_historical = np.vstack((csv_timestamp[historical_start:], evec_historical[:, i, :])).T
     csv_evec_historical = np.vstack((csv_evec_historical_header, csv_evec_historical))
-    np.savetxt("historical_evecs-" + str(i) + ".csv", csv_evec_historical, delimiter=',', fmt='%s')
+    np.savetxt(output_folder + "historical_evecs-" + str(i) + ".csv", csv_evec_historical, delimiter=',', fmt='%s')
 
 #Plot PCA result
 #plot(data_pca)
