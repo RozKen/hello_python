@@ -1,6 +1,6 @@
 '''
-analize.py
-@description Main Procedure for Executing Principle Component Analysis on Time-series Data
+statistics.py
+@description Helper for Analyzing Time-series Data
 @author Kenichi Yorozu
 @email rozken@gmail.com
 @notice Source files on this repository is provided as-is and no guarantee
@@ -9,7 +9,6 @@ analize.py
         credit somewhere for my work. An e-mail saying you found it useful
         would also be much appreciated by myself.
 '''
-from numpy import matrix
 
 '''
 @fn summary
@@ -54,13 +53,23 @@ def summary(data):
 '''
 def corMat(data, days = 120):
     import numpy as np
-    
-#   _, assets = data.shape
-#    matrix = np.zeros((assets, assets))
-    
+       
     data = data[:-days]
-    #print data[:, 0]
-    #print data[:, [1,2]]
     matrix = np.corrcoef(data.T)
 
     return matrix
+
+'''
+@fn z_scores
+@brief calculate z-scores of series
+@description z_scores = (data - mean) / standard deviation
+@param data : 2D NumPy array : vertical:date, horizontal:asset class, economic indicators or  etc.
+@return z_scores
+'''
+def z_scores(data):
+    import numpy as np
+    mean = np.mean(data, axis = 0)
+    stdev = np.nanstd(data, axis = 0)
+    z_scores = (data - mean) / stdev
+    return z_scores
+

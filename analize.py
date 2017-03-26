@@ -65,11 +65,19 @@ header, timestamp, raw_data = ld.csv(input_folder + "series_raw.csv")
 Analyze Original Data
 '''
 #Draw Original Data
-print st.summary(raw_data)
+#print st.summary(raw_data)
 
 vz.line_graph(raw_data.T, timestamp)
 
 vz.corMat(np.corrcoef(st.corMat(raw_data, normalize_days)))
+
+#Draw data distribution
+z = st.z_scores(raw_data)
+vz.histogram(z, header)
+
+#Draw heatmap
+### TEMPOLARY ADJUSTMENT ###
+vz.heatmap(z[4600:], timestamp[4600:], header)
 
 '''
 Execute PCA
@@ -77,6 +85,7 @@ Execute PCA
 if IsHistorical == False:
     #Principal Component Analysis
     data_pca, evals, evecs, z_score, composite_index = pc.PCAwithComp(raw_data, settings, normalize_days, pca_dimensions)
+    
 else:
     #variables for historical data logging
     index_historical = np.array([])
@@ -163,9 +172,6 @@ else:
                 index_historical = np.hstack((index_historical, index_historical[-1] + composite_index[-1] - composite_index[-2]))
             eval_historical = np.vstack((eval_historical, evals))
             evec_historical = np.dstack((evec_historical, evecs))
-
-### TEMPOLARY ADJUSTMENT ###
-vz.heatmap(z_score[4600:], timestamp[4600:], header)
 
 '''
 Output Data and Log to CSV Files

@@ -31,7 +31,7 @@ def plot(data, filename ="plot", folder_path="graphs/", IsSave = True, IsShow = 
     
     _, n = data.shape
     clr1 = '#202682'
-    fig = plt.figure()
+    fig = plt.figure(figsize = (11, 6))
     if n > 2:
         ax1 = fig.add_subplot(221)
         ax1.plot(data[:, 0], data[:, 1], '.', mfc=clr1, mec=clr1)
@@ -90,7 +90,7 @@ def line_graph(data, timestamp, filename = "composite index", folder_path="graph
 
     print "===Drawing Line Graph==="
     
-    fig = plt.figure()
+    fig = plt.figure(figsize = (11, 6))
     ax = fig.add_subplot(111)
 
     #convert timestamp data for x-axis
@@ -180,8 +180,8 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     df['Date'] = df['Date'].astype(int)
     df['Header'] = df['Header'].astype(str)
     df['Value'] = df['Value'].astype(float)
-    
-    fig = plt.figure()
+
+    fig = plt.figure(figsize = (11, 6))
     ax = fig.add_subplot(111)
     
     xlabel = pd.DataFrame(mdates.num2date(df['Date'])).astype(str)
@@ -230,7 +230,51 @@ def heatmap(data, timestamp, header, filename = "heatmap", folder_path = "graphs
     
     #Free Memory
     plt.close()
+
+'''
+@fn histogram
+@brief show and save histogram
+@param data : 2D NumPy array : Z-scores
+@param header : name of each columns
+@param filename : filename for save png
+@param folder_path : folder path for save png
+@param IsSave : whether or not save graph as png (default : True)
+@param IsShow : whether or not show graph on display (default: True)
+@return none
+'''
+def histogram(data, header, filename = "histogram", folder_path = "graphs/", IsSave = True, IsShow = True):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import math
     
+    #notice! when you update font list, remove <user home>/.matplotlib/fontList.cache (windows)
+    sns.set(font=['Meiryo UI'])
+    
+    days, assets = data.shape
+    columns = 6
+    raws = int(math.ceil(float(assets) / float(columns)))
+    bins = int(math.ceil(float(days) / 100.0) * 5)
+    
+    fig = plt.figure(figsize = (11, 6))
+    count = 0
+    for _ in range(assets):
+        if count < assets:
+            plt.subplot(raws, columns, count + 1)
+            plt.title(unicode(header[count], encoding='utf-8'))
+            sns.distplot(data[:, count], kde=False, rug=False, bins = bins)
+        count = count + 1
+        
+    if IsSave:
+        #Save Plot Image
+        plt.savefig(folder_path + filename + ".png", dpi=300)
+    
+    if IsShow:
+        #Show Plot Image
+        plt.show()
+    
+    #Free Memory
+    plt.close()
+
 '''
 @fn heatmap
 @brief show and save heatmap
@@ -265,11 +309,11 @@ def corMat(data, filename = "correlation matrix", folder_path = "graphs/", IsSav
     df['y'] = df['y'].astype(int)
     df['value'] = df['value'].astype(float)
     
-    fig = plt.figure()
+    fig = plt.figure(figsize = (11, 6))
     ax = fig.add_subplot(111)
         
     df_pivot = pd.pivot_table(data=df, values='value', columns='x', index='y', aggfunc=np.mean)
-    sns.heatmap(df_pivot, vmin=-1.0, vmax = 1.0, square=False, ax = ax)
+    sns.heatmap(df_pivot, vmin=-1.0, vmax = 1.0, square=True, ax = ax)
 
     ax.grid(True)
     
