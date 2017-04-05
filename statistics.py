@@ -1,3 +1,4 @@
+﻿#encoding: utf-8
 '''
 statistics.py
 @description Helper for Analyzing Time-series Data
@@ -72,4 +73,21 @@ def z_scores(data):
     stdev = np.nanstd(data, axis = 0)
     z_scores = (data - mean) / stdev
     return z_scores
-
+'''
+@fn rolling_z
+@brief calculate rolling z-scores of series
+@description rolling_z compiles z_scores for each term (days)
+@param data : 2D NumPy array : vertical:date, horizontal: asset class, ecoomic indicators or etc.
+@param days : calculating term (default = 120)
+@return rolling_z
+'''
+def rolling_z(data, days = 120):
+    import numpy as np
+    end, _ = data.shape
+    rolling_z = np.array([])
+    for term in range(days, end):
+        if term == days:
+            rolling_z = np.hstack((rolling_z,z_scores(data[term - days:term])[0]))
+        else:
+            rolling_z = np.vstack((rolling_z,z_scores(data[term - days:term])[0]))
+    return rolling_z

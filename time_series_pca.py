@@ -1,3 +1,4 @@
+﻿#encoding: utf-8
 '''
 time_series_pca.py
 @description Simple Principle Component Analysis Methods on Time-series Data

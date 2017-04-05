@@ -1,3 +1,4 @@
+﻿#encoding: utf-8
 '''
 analize.py
 @description Main Procedure for Executing Principle Component Analysis on Time-series Data
@@ -12,20 +13,16 @@ analize.py
 
 '''
 @TODO
-- review h_methods for +/- direction of each PCA index
-- review level adjustment on composite index with regression
 - eliminate Manual Inputs
 
 ***TEMPOLARY ADJUSTMENT***
-#4437 days until raw_data acquired (2015/7/22) *** should be timestamp.size
 #MANUAL INPUT [12] (column index of S&P500 for standardization of compound index)
-#assume 'settings' is 1D Column : load_settings
-h_start = 3407 #days since raw_data acquired (2012 ~ )
 '''
 import statistics as st         #Load Statistics Method
 import time_series_pca as pc    #Load PCA Core Method
 import loader as ld             #Load CSV Handlers
 import visualizer as vz         #Load Graph-drawing Methods
+import utility as ut            #Load Utility Function
 import numpy as np
 #from datetime import datetime as dt
 
@@ -44,13 +41,14 @@ input_folder = "data_input/"
 graph_folder = "graphs/"        #default value in plotting functions
 
 #Setting for Historical Data Logging 
-IsHistorical = False     #Log Historical Data
-h_start = 3407          #days since raw_data acquired (2012 ~ )    ### TEMPOLARY ADJUSTMENT [Manual Input]###
-h_method = 201          #how to deal with new PCA series which is not consistent with historical series
+IsHistorical = False        #Log Historical Data
+h_start_str = "2012/1/1"    #days since raw_data acquired (2012 ~ )
+h_method = 201              #how to deal with new PCA series which is not consistent with historical series
+h_param1 = 12               #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt (used when h_method = 100, 101, 110, or 111)    ###TEMPOLARY ADJUSTMENT### - MANUAL INPUT [12]
 
 #Debug Flag
 IsDebug = False          #Output Graphs for Debug - Only for Historical
-d_span = 100            #interval of days to Draw Graph
+d_span = 1            #interval of days to Draw Graph
 
 '''
 Read CSV Data
@@ -60,6 +58,7 @@ settings = ld.settings(input_folder + "settings.csv")
 
 #Read Data
 header, timestamp, raw_data = ld.csv(input_folder + "series_raw.csv")
+h_start = ut.argDate(timestamp, h_start_str)
 
 '''
 Analyze Original Data
@@ -67,24 +66,25 @@ Analyze Original Data
 #Draw Original Data
 #print st.summary(raw_data)
 
-vz.line_graph(raw_data.T, timestamp)
+#vz.line_graph(raw_data.T, timestamp)
 
-vz.corMat(np.corrcoef(st.corMat(raw_data, normalize_days)))
+vz.corMat(np.corrcoef(st.corMat(raw_data * settings[0], normalize_days)), header, IsMask=True)
 
 #Draw data distribution
-z = st.z_scores(raw_data)
-vz.histogram(z, header)
+#z = st.z_scores(raw_data)
+#vz.histogram(z, header)
 
 #Draw heatmap
-### TEMPOLARY ADJUSTMENT ###
-vz.heatmap(z[4600:], timestamp[4600:], header)
+h = st.rolling_z(raw_data * settings[1], days = normalize_days)
+#np.savetxt(output_folder + "heatmap.csv", h, delimiter=',', fmt='%s')
+vz.heatmap(h[ut.argDate(timestamp,h_start_str) - normalize_days:], timestamp[ut.argDate(timestamp,h_start_str):], header, dateFrom = "2014/01/01")
 
 '''
 Execute PCA
 '''
 if IsHistorical == False:
     #Principal Component Analysis
-    data_pca, evals, evecs, z_score, composite_index = pc.PCAwithComp(raw_data, settings, normalize_days, pca_dimensions)
+    data_pca, evals, evecs, z_score, composite_index = pc.PCAwithComp(raw_data, settings[0], normalize_days, pca_dimensions)
     
 else:
     #variables for historical data logging
@@ -95,7 +95,7 @@ else:
     for history in range(h_start, timestamp.size):
         
         #Principal Component Analysis
-        data_pca, evals, evecs, z_score, composite_index = pc.PCAwithComp(raw_data[:history + 1], settings, normalize_days, pca_dimensions)
+        data_pca, evals, evecs, z_score, composite_index = pc.PCAwithComp(raw_data[:history + 1], settings[0], normalize_days, pca_dimensions)
         
         '''
         Log Historical Data
@@ -105,8 +105,8 @@ else:
             ###    fit new PCA to historical series
     
             #acquire argmin of column #13 : S&P500 : 2009/3/9 : 676.53 pt
-            ###TEMPOLARY ADJUSTMENT - MANUAL INPUT [12]
-            argmin = np.argmin(raw_data[:,12])
+            argmin = np.argmin(raw_data[:,h_param1])
+            print timestamp[argmin][0].strftime("%Y/%m/%d") + " : " + header[h_param1] + " : " + str(raw_data[argmin, h_param1])
     
             
             if history == h_start:
@@ -192,7 +192,7 @@ csv_series_result = np.vstack((np.hstack((np.array(['Date', 'Compound Index']), 
 np.savetxt(output_folder + "series_results.csv", csv_series_result, delimiter=',', fmt='%s')
 
 #Z-scores
-csv_header = np.hstack((np.array(['Date']), header))
+csv_header = np.hstack((np.array(['Date']), ld.encode_array(header, 'cp932')))
 csv_z_score = np.vstack((csv_header, np.vstack((csv_timestamp, z_score.T)).T))
 np.savetxt(output_folder + "z-score.csv", csv_z_score, delimiter=',', fmt='%s')
 
@@ -215,7 +215,7 @@ if IsHistorical:
     np.savetxt(output_folder + "historical_evals.csv", csv_eval_historical, delimiter=',', fmt='%s')
     
     #Historical Eigen Vectors
-    csv_evec_historical_header = np.hstack((np.array(['Date']), header))
+    csv_evec_historical_header = np.hstack((np.array(['Date']), ld.encode_array(header, 'cp932')))
     for i in range(0, pca_dimensions):
         csv_evec_historical = np.vstack((csv_timestamp[h_start:], evec_historical[:, i, :])).T
         csv_evec_historical = np.vstack((csv_evec_historical_header, csv_evec_historical))

@@ -1,3 +1,4 @@
+﻿#encoding: utf-8
 '''
 loader.py
 @description Provide Methods for Reading Time-series CSV Data
@@ -9,6 +10,37 @@ loader.py
         credit somewhere for my work. An e-mail saying you found it useful
         would also be much appreciated by myself.
 '''
+from __future__ import unicode_literals
+
+'''
+@fn decode_array
+@brief decode string array to unicode
+@param string_array : 1D array of strings
+@param codec : codec of the strings (default : cp932 : Japanese)
+@return u_string_array : NumPy 1D Array : 1D NumPy Array of strings (unicode)
+'''
+def decode_array(string_array, codec='cp932'):
+    import numpy as np
+    #Convert Character Set to Unicode
+    u_string_array = np.array([])
+    for name in string_array:
+        u_string_array = np.hstack((u_string_array, np.array(name.decode(codec))))
+    return u_string_array
+
+'''
+@fn encode_array
+@brief encode string array from unicode
+@param u_string_array : 1D array of strings
+@param codec : codec of the strings (default : cp932 : Japanese)
+@return string_array : NumPy 1D Array : 1D NumPy Array of strings (unicode)
+'''
+def encode_array(u_string_array, codec='utf_8'):
+    import numpy as np
+    #Convert Character Set to Unicode
+    string_array = np.array([])
+    for name in u_string_array:
+        string_array = np.hstack((string_array, np.array(name.encode(codec))))
+    return string_array
 
 '''
 @fn csv_no_header
@@ -64,6 +96,8 @@ def csv_no_header(filename, methods = 0):
 def csv(filename, header_rows = 1):
     import numpy as np  #necessary for @return data (NumPy 2D Array)
     import csv
+    import codecs
+    import sys
     from datetime import datetime as dt
     
     print "===Loading Data from CSV Files==="
@@ -75,15 +109,16 @@ def csv(filename, header_rows = 1):
     count = 0
     
     #Read CSV Data
-    with open(filename, 'rU') as csv_file:
+    with codecs.open(filename, 'rU') as csv_file:
         reader = csv.reader(csv_file, quoting=csv.QUOTE_ALL) #QUOTE_ALL is required for headers & date column
         for row in reader:
             if dataFlag: #Read Headers and First Data
                 if count < header_rows: #Read Headers
+                    temp = decode_array(row, 'cp932')
                     if count == 0:
-                        header = np.hstack((header, np.array(row)))
+                        header = np.hstack((header, np.array(temp)))
                     else:
-                        header = np.vstack((header, np.array(row)))
+                        header = np.vstack((header, np.array(temp)))
                     count += 1
                 else: #Read First Data
                     csv_data = np.hstack((csv_data, np.array(row)))
@@ -106,17 +141,22 @@ def csv(filename, header_rows = 1):
         if timestamp[0] > timestamp[1]:
             timestamp = timestamp[::-1]
             csv_data = csv_data[::-1]
+
     return header, timestamp, csv_data
 
 '''
 @fn settings
 @brief load csv data for setting
+@description setting file contains directions (1 or -1) used for analysis
+            for now, 
+             row[0] : PCA / Correlation Matrix
+             row[1] : Heatmap
 @param filename : path_to_the_csv_file.csv : file path to the csv file
 @param header_rows : number of rows used for header in the csv file (default = 1)
 @return settings : NumPy Array (float64) : settings
 '''
 def settings(filename, header_rows = 1):
-    import numpy as np  #necessary for @return data (NumPy 2D Array)
+    import numpy as np
     import csv
     
     print "===Loading Setting==="
@@ -129,11 +169,13 @@ def settings(filename, header_rows = 1):
         for row in reader:
             if count < header_rows:
                 count = count + 1
-            else:
+            elif count == header_rows:
                 settings = np.hstack((settings, np.array(row)))
+                count = count + 1
+            else:
+                settings = np.vstack((settings, np.array(row)))
     
     #Remove 1st Column and Transform string to float64
-    #TEMPOLARY ADJUSTMENT *** assume 'settings' is 1D Column
-    settings = settings[1:].astype(np.float64)
+    settings = settings[:,1:].astype(np.float64)
     
     return settings
